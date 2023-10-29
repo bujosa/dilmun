@@ -22,3 +22,6 @@ go.work
 
 # Google Credentials File
 credentials.json
+
+# Environment file
+.env

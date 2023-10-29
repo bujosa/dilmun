@@ -2,76 +2,49 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
-
-	"cloud.google.com/go/pubsub"
-	"google.golang.org/api/option"
+	"dilmun/shared"
+	"dilmun/utils"
+	"net/http"
 )
 
 const (
-	projectID      = "your-project-id"
 	topicID        = "your-topic"
 	subscriptionID = "your-subscription"
 )
 
 func main() {
+	shared.LoadEnv()
 	ctx := context.Background()
 
-	// Load Google Cloud credentials from a JSON file
-	credentialFile := "path/to/your/credentials.json"
-	opt := option.WithCredentialsFile(credentialFile)
+	utils.InitClient()
+	defer utils.CloseClient()
 
-	// Create a Pub/Sub client
-	client, err := pubsub.NewClient(ctx, projectID, opt)
-	if err != nil {
-		log.Fatalf("Error creating Pub/Sub client: %v", err)
-	}
-	defer client.Close()
+	// Create topic
+	topic := utils.CreateTopic(ctx, topicID)
 
-	// Create a topic if it doesn't exist
-	topic := client.Topic(topicID)
-	exists, err := topic.Exists(ctx)
-	if err != nil {
-		log.Fatalf("Error checking if topic exists: %v", err)
-	}
-	if !exists {
-		if _, err = client.CreateTopic(ctx, topicID); err != nil {
-			log.Fatalf("Failed to create topic: %v", err)
-		}
-	}
+	// Create subscription
+	sub := utils.CreateSubscription(ctx, subscriptionID, topic)
 
-	// Create a subscription if it doesn't exist
-	sub := client.Subscription(subscriptionID)
-	exists, err = sub.Exists(ctx)
-	if err != nil {
-		log.Fatalf("Error checking if subscription exists: %v", err)
-	}
-	if !exists {
-		if _, err = client.CreateSubscription(ctx, subscriptionID, pubsub.SubscriptionConfig{
-			Topic: topic,
-		}); err != nil {
-			log.Fatalf("Failed to create subscription: %v", err)
-		}
-	}
+	// Expose an HTTP endpoint to publish messages	
+	http.HandleFunc("/message", func(w http.ResponseWriter, r *http.Request) {
+		message := r.FormValue("message")
+
+		utils.PublishMessage(ctx, topic, message)
+	})
+
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, World!"))
+	})
+
+	http.ListenAndServe(":8080", nil)
 
 	// Publish a message to the topic
-	msg := &pubsub.Message{
-		Data: []byte("Hello, Google Cloud Pub/Sub!"),
-	}
-	res := topic.Publish(ctx, msg)
-	id, err := res.Get(ctx)
-	if err != nil {
-		log.Fatalf("Failed to publish message: %v", err)
-	}
-	fmt.Printf("Published a message with ID: %s\n", id)
+	utils.PublishMessage(ctx, topic, "Hello, World! From Dilmun!")
 
 	// Receive messages from the subscription
-	err = sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
-		fmt.Printf("Received message: %s\n", string(msg.Data))
-		msg.Ack()
-	})
-	if err != nil {
-		log.Fatalf("Error receiving message: %v", err)
+	for {
+		utils.ReceiveMessage(ctx, sub)
 	}
+
 }

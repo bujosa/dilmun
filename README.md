@@ -18,6 +18,13 @@ See the [`.env.example`](.env.example) file to see the environment variables tha
 go run main.go
 ```
 
+Example of calling the endpoint:
+
+```bash
+curl --location --request POST 'http://localhost:8080/message' \
+--form 'message=Hello world'
+```
+
 ## Result of the project
 
 ![Example calling message endpoint](example.png)

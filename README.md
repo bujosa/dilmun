@@ -7,6 +7,7 @@ This is a simple project related with pubsub + go
 ### Requirements
 
 - Go 1.21 or higher
+- Create a project in Google Cloud Platform and enable the Pub/Sub API for it (see [this](https://cloud.google.com/pubsub/docs/quickstart-client-libraries#before-you-begin) for more information)
 
 ### Environment variables
 
